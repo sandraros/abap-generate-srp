@@ -5,49 +5,11 @@ CLASS zcl_gensrp DEFINITION
 
   PUBLIC SECTION.
 
-    TYPES : BEGIN OF ty_result_object,
-              parameter_name TYPE string,
-              bound_optional TYPE abap_bool,
-            END OF ty_result_object.
+    INTERFACES zif_gensrp.
 
-    DATA srp_name     TYPE syrepid READ-ONLY.
-    DATA message      TYPE string READ-ONLY.
-    DATA line         TYPE i READ-ONLY.
-    DATA word         TYPE string READ-ONLY.
-    DATA include      TYPE string READ-ONLY.
-    DATA message_id   TYPE trmsg_key READ-ONLY.
-    DATA offset       TYPE i READ-ONLY.
-    DATA shortdump_id TYPE string READ-ONLY.
-    DATA trace_file   TYPE string READ-ONLY.
-
-    METHODS call_static_method
+    METHODS constructor
       IMPORTING
-        class_name    TYPE seoclsname
-        method_name   TYPE seocmpname
-        parameters    TYPE abap_parmbind_tab OPTIONAL
-        result_object TYPE ty_result_object OPTIONAL
-      RETURNING
-        VALUE(result) TYPE REF TO object
-      RAISING
-        cx_static_check
-        cx_dynamic_check.
-
-    METHODS create_object
-      IMPORTING
-        class_name    TYPE seoclsname
-        parameters    TYPE abap_parmbind_tab OPTIONAL
-        via_perform   TYPE abap_bool DEFAULT abap_false
-      RETURNING
-        VALUE(result) TYPE REF TO object
-      RAISING
-        cx_static_check
-        cx_dynamic_check.
-
-    CLASS-METHODS generate_subroutine_pool
-      IMPORTING
-        abap_code     TYPE string_table
-      RETURNING
-        VALUE(result) TYPE REF TO zcl_gensrp
+        abap_code TYPE string_table
       RAISING
         zcx_gensrp.
 
@@ -59,7 +21,33 @@ ENDCLASS.
 
 CLASS zcl_gensrp IMPLEMENTATION.
 
-  METHOD call_static_method.
+  METHOD constructor.
+
+    GENERATE SUBROUTINE POOL abap_code
+        NAME         zif_gensrp~srp_name
+        MESSAGE      zif_gensrp~message
+        LINE         zif_gensrp~line
+        WORD         zif_gensrp~word
+        INCLUDE      zif_gensrp~include
+        MESSAGE-ID   zif_gensrp~message_id
+        OFFSET       zif_gensrp~offset
+        SHORTDUMP-ID zif_gensrp~shortdump_id.
+
+    IF sy-subrc <> 0.
+
+      RAISE EXCEPTION TYPE zcx_gensrp
+        EXPORTING
+          text  = 'Generation error &1 at line &2: &3'(003)
+          msgv1 = |{ sy-subrc }|
+          msgv2 = |{ zif_gensrp~line }|
+          msgv3 = zif_gensrp~message.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+
+  METHOD zif_gensrp~call_static_method.
     FIELD-SYMBOLS <parameters> TYPE abap_parmbind_tab.
 
     "=============
@@ -78,7 +66,7 @@ CLASS zcl_gensrp IMPLEMENTATION.
     "=============
     " Execution
     "=============
-    PERFORM call_static_method IN PROGRAM (srp_name)
+    PERFORM call_static_method IN PROGRAM (zif_gensrp~srp_name)
       USING class_name
             method_name
             <parameters>.
@@ -112,17 +100,23 @@ CLASS zcl_gensrp IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD create_object.
+  METHOD zif_gensrp~create_object.
     FIELD-SYMBOLS <parameters> TYPE abap_parmbind_tab.
 
     IF via_perform = abap_false.
 
-      DATA(absolute_name) = |\\PROGRAM={ srp_name }\\CLASS={ class_name }|.
-      CREATE OBJECT result TYPE (absolute_name) PARAMETER-TABLE parameters.
+      DATA(absolute_name) = |\\PROGRAM={ zif_gensrp~srp_name }\\CLASS={ class_name }|.
+      " EXCEPTION-TABLE is required by kernels before note 2866213, even if no specific need.
+      " NB: note 2866213 - ABAP short dump RUNT_ILLEGAL_SWITCH at CREATE OBJECT ... PARAMETER-TABLE
+      " at https://me.sap.com/notes/2866213/E.
+      DATA(dummy_exception_table) = VALUE abap_excpbind_tab( ).
+      CREATE OBJECT result TYPE (absolute_name)
+                            PARAMETER-TABLE parameters
+                            EXCEPTION-TABLE dummy_exception_table.
 
     ELSE.
 
-      PERFORM create_object IN PROGRAM (srp_name)
+      PERFORM create_object IN PROGRAM (zif_gensrp~srp_name)
         USING    class_name
                  parameters
         CHANGING result.
@@ -138,30 +132,9 @@ CLASS zcl_gensrp IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD generate_subroutine_pool.
+  METHOD zif_gensrp~generate_subroutine_pool.
 
-    result = NEW zcl_gensrp( ).
-
-    GENERATE SUBROUTINE POOL abap_code
-        NAME         result->srp_name
-        MESSAGE      result->message
-        LINE         result->line
-        WORD         result->word
-        INCLUDE      result->include
-        MESSAGE-ID   result->message_id
-        OFFSET       result->offset
-        SHORTDUMP-ID result->shortdump_id.
-
-    IF sy-subrc <> 0.
-
-      RAISE EXCEPTION TYPE zcx_gensrp
-        EXPORTING
-          text  = 'Generation error &1 at line &2: &3'(003)
-          msgv1 = |{ sy-subrc }|
-          msgv2 = |{ result->line }|
-          msgv3 = result->message.
-
-    ENDIF.
+    result = NEW zcl_gensrp( abap_code ).
 
   ENDMETHOD.
 

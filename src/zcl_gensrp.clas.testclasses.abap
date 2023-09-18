@@ -17,7 +17,7 @@ CLASS ltc_create_object IMPLEMENTATION.
 
   METHOD via_create_object_absolute.
 
-    DATA(gensrp) = zcl_gensrp=>generate_subroutine_pool( VALUE #(
+    DATA(gensrp) = zcl_gensrp=>zif_gensrp~generate_subroutine_pool( VALUE #(
         ( |PROGRAM.| )
         ( || )
         ( |CLASS lcl_app DEFINITION.| )
@@ -35,7 +35,7 @@ CLASS ltc_create_object IMPLEMENTATION.
 
   METHOD via_perform.
 
-    DATA(gensrp) = zcl_gensrp=>generate_subroutine_pool( VALUE #(
+    DATA(gensrp) = zcl_gensrp=>zif_gensrp~generate_subroutine_pool( VALUE #(
         ( |PROGRAM.| )
         ( |INCLUDE zgensrp_forms_in_srp.| )
         ( |CLASS lcl_app DEFINITION.| )
